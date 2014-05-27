@@ -14,7 +14,7 @@ class Activity:
 	
 	friendlyNames = {
 		'CL_MUV_FEE_CAMPUS_COMMUNITY':'Monash Venues',
-		'CL_ENGINEERING':'Engineering Faculty',
+		'CL_ENGINEERING':'Eng Faculty',
 	}
 	
 	friendlyLocations = {
@@ -56,7 +56,7 @@ class Activity:
 			if bookingSource in self.friendlyNames:
 				bookingSource = self.friendlyNames[bookingSource]
 			self.name = bookingSource
-			self.type = 'Booked Room'
+			self.type = 'Booking'
 		else:
 			unitSplit = nameSplit[0].split('_')
 			self.name = unitSplit[0]
@@ -179,6 +179,7 @@ for room,activites in currentActivities.items():
 	print(room)
 	print(*(activites),sep='\n')
 '''
+print('X-UA-Compatible: IE=edge')
 print('Content-type: text/html\n\n')
 
 print('''<!DOCTYPE html>
