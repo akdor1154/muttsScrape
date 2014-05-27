@@ -1,0 +1,34 @@
+ul {
+      list-style-type: none;
+      list-style-position: none;
+      margin: 0;
+      padding: 0;
+}
+li {
+      list-style-type: none;
+}
+ul.roomList {
+      display: block;
+      width: 80%;
+      margin: 0 auto;
+}
+ul.roomList > li {
+      display: inline-block;
+      vertical-align: middle;
+      padding: .5em;
+}
+span.roomName {
+      display: inline-block;
+      width: 8em;
+      text-align: right;
+      vertical-align: baseline;
+      font-weight: bold;
+}
+.classList {
+      display: inline-block;
+      width: 22em;
+      vertical-align: middle;
+}
+
+span.classList {
+      vertical-align: baseline;

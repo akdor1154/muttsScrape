@@ -3,7 +3,7 @@
 
 from datetime import date,timedelta,time,datetime
 from copy import deepcopy
-from operator import attrgetter
+from operator import attrgetter,itemgetter
 
 import urllib.request
 from bs4 import BeautifulSoup
@@ -164,7 +164,8 @@ for tr in timetableSoup.find(id='tblTimetable').find_all('tr'):
 		currentTime += tdSpan*columnDelta
 
 
-testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
+#testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
+testTime = datetime.today()
 timeMargin = timedelta(minutes=7)
 
 currentActivities = dict([
@@ -178,16 +179,19 @@ for room,activites in currentActivities.items():
 	print(room)
 	print(*(activites),sep='\n')
 '''
+print('Content-type: text/html\n\n')
+
 print('''<!DOCTYPE html>
 <html>
 <head>
 	<title>Current Classes</title></head>
 	<meta charset="UTF-8" />
-	<link rel="stylesheet" type="text/css" href="classes.css" />
+	<link rel="stylesheet" type="text/css" href="/static/classes.css" />
 <body>
 <ul class="roomList">
 ''')
-for room, roomActivities in currentActivities.items().sort():
+
+for room, roomActivities in sorted(currentActivities.items(), key=itemgetter(0)):
 	print('<li><span class="roomName">',room,': </span>',sep='')
 	if len(roomActivities) == 0:
 		print('<span class="classList">Free!</span>')
@@ -197,10 +201,10 @@ for room, roomActivities in currentActivities.items().sort():
 			for activity in roomActivities]
 		print('</ul>')
 	print('</li>')
-print('''
-</ul>
+print('''</ul>
 </body>
-</html>''');
+</html>
+''');
 	
 	
 
