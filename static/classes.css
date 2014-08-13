@@ -9,7 +9,8 @@ li {
 }
 ul.roomList {
       display: block;
-      width: 80%;
+/*      width: 80%;*/
+      -webkit-column-width: 32em;
       margin: 0 auto;
 }
 ul.roomList > li {
@@ -17,12 +18,22 @@ ul.roomList > li {
       padding: .5em;
 }
 span.roomName {
-      display: inline-block;
+      float: left;
+      display: block;
       width: 8em;
       text-align: right;
       font-weight: bold;
+      padding-right: 1ex;
 }
 .classList {
-      display: inline-block;
+      float: left;
+      display: block;
       width: 22em;
+}
+
+.prev, .next {
+      opacity: 0.5;
+}
+.roomWithPrev {
+	transform: translateY(100%);
 }

@@ -4,9 +4,11 @@
 from datetime import date,timedelta,time,datetime
 from copy import deepcopy
 from operator import attrgetter,itemgetter
+import collections
 
 import urllib.request
 from bs4 import BeautifulSoup
+
 
 import muttsScrapeCredentials
 
@@ -165,24 +167,39 @@ for tr in timetableSoup.find(id='tblTimetable').find_all('tr'):
 
 
 #testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
-testTime = datetime.today()
-timeMargin = timedelta(minutes=7)
+testTime = datetime.today().replace(hour=16,minute=4)
+timeMarginStart = timedelta(hours=1)
+timeMarginEnd = timedelta(minutes=7)
+
+#currentActivities = dict([
+#	(room, sorted([a for a in roomActivites[testTime.weekday()]
+#		if (a.startTime < testTime+timeMarginStart and testTime-timeMarginEnd < a.endTime)], key=attrgetter('startTime')))
+#	for room, roomActivites in activitiesByRoom.items()
+#])
 
 currentActivities = dict([
-	(room, sorted([a for a in roomActivites[testTime.weekday()]
-		if (a.startTime < testTime+timeMargin and testTime-timeMargin < a.endTime)], key=attrgetter('startTime')))
-	for room, roomActivites in activitiesByRoom.items()
+	(room, [
+		('prev', next( (a for a in roomActivities[testTime.weekday()]
+			  if (a.endTime > testTime-timeMarginEnd and a.endTime < testTime)
+			), None)),
+		('now',  next( (a for a in roomActivities[testTime.weekday()]
+			  if (a.startTime < testTime and a.endTime > testTime)
+			), None)),
+		('next', next( (a for a in roomActivities[testTime.weekday()]
+			  if (a.startTime > testTime and a.startTime < testTime+timeMarginStart)
+			), None))
+	])
+	for room, roomActivities in activitiesByRoom.items()
 ])
-'''
-print('\nCurrent activites!\n\n')
-for room,activites in currentActivities.items():
-	print(room)
-	print(*(activites),sep='\n')
-'''
+
+
+
+
 print('X-UA-Compatible: IE=edge')
 print('Content-type: text/html\n\n')
 
-print('''<!DOCTYPE html>
+print('''
+<!DOCTYPE html>
 <html>
 <head>
 	<title>Current Classes</title></head>
@@ -190,18 +207,39 @@ print('''<!DOCTYPE html>
 	<link rel="stylesheet" type="text/css" href="/static/classes.css" />
 <body>
 <ul class="roomList">
-''')
+'''
+)
 
 for room, roomActivities in sorted(currentActivities.items(), key=itemgetter(0)):
-	print('<li><span class="roomName">',room,': </span>',sep='')
-	if len(roomActivities) == 0:
-		print('<span class="classList">Free!</span>')
-	else:
-		print('<ul class="classList">');
-		[print('<li>',activity.name,' ',activity.type,': ',activity.timespanToString(),'</li>',sep='')
-			for activity in roomActivities]
-		print('</ul>')
-	print('</li>')
+	hasPrev = False
+	roomNameOut = '<li><span class="roomName {cssClass}">{room}: </span>'
+#	if len(roomActivities) == 0:
+#		print('<span class="classList">Free!</span>')
+#	else:
+#		print('<ul class="classList">');
+#		[print('<li>',activity.name,' ',activity.type,': ',activity.timespanToString(),'</li>',sep='')
+#			for activity in roomActivities]
+#		print('</ul>')
+	classListOut = []
+	classListOut.append('<ul class="classList">')
+	for when,activity in roomActivities:
+		if activity is not None:
+			classListOut.append('<li class="{cssClass}">{when:s}{name:s} {type:s}: {time:s}</li>'.format(
+				cssClass=when,
+				when=''.join([when.title(),': ']) if when != 'now' else '',
+				name=activity.name,
+				type=activity.type,
+				time=activity.timespanToString()))
+			if when == 'prev':
+				hasPrev = True
+		elif when != 'prev':
+			classListOut.append('<li class="{cssClass:s} free">{when:s}Free!</li>'.format(
+				cssClass=when,
+				when=''.join([when.title(),': ']) if when != 'now' else ''))
+	classListOut.append('</ul>')
+	classListOut.append('</li>')
+	print(roomNameOut.format(cssClass = "roomWithPrev" if hasPrev else "", room=room))
+	print('\n'.join(classListOut))
 print('''</ul>
 </body>
 </html>
