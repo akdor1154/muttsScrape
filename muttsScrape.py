@@ -253,7 +253,7 @@ def application(environ, start_response):
 	</html>
 	''');
 	
-	outputStr = ''.join(output)
+	outputStr = ''.join(output).encode('UTF-8')
 	response_headers.append(('Content-Length', str(len(outputStr))))
 	start_response('200 OK', response_headers)
 	return [outputStr]
