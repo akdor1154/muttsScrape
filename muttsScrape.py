@@ -176,7 +176,7 @@ def application(environ, start_response):
 
 
 	#testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
-	testTime = datetime.today().replace(hour=16,minute=4)
+	testTime = datetime.today()
 	timeMarginStart = timedelta(hours=1)
 	timeMarginEnd = timedelta(minutes=7)
 
