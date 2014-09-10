@@ -14,6 +14,7 @@ import os
 sys.path.append(os.path.dirname(__file__))
 
 import muttsScrapeCredentials
+import itertools
 
 class Activity:
 	
@@ -25,9 +26,12 @@ class Activity:
 	friendlyLocations = {
 		'CL_60/G11':'G11',
 		'CL_60/G14':'G14',
+		'CL_60/G14^G15':['G14','G15'],
 		'CL_60/G15':'G15',
 		'CL_60/G16':'G16',
-		'CL_60/G18^G19':'G18 & G19',
+		'CL_60/G18':'G18',
+		'CL_60/G19':'G19',
+		'CL_60/G18^G19':['G18','G19'],
 		'CL_60/G20':'G20',
 		'CL_60/G21':'G21',
 		'CL_60/G21A':'G21a'
@@ -39,8 +43,10 @@ class Activity:
 		self.startTime = startTime
 		self.endTime = endTime
 		self.weekDay = startTime.weekday() if (startTime is not None) else None
-		self.locations = [(self.friendlyLocations[l] if (l in self.friendlyLocations) else l)
-					for l in locations.split(', ')]
+		self.locations = set(flatten(
+					[(self.friendlyLocations[l] if (l in self.friendlyLocations) else l)
+						for l in locations.split(', ')]
+				))
 		self.parseName(activityNameString)
 		
 	def __str__(self):
@@ -71,6 +77,12 @@ def isRoomTag(tag):
 def getRoomString(tag):
 	return str(tag.find(isRoomTag).next_sibling)
 
+def flatten(l):
+    for el in l:
+        if isinstance(el, list):
+            yield from flatten(el)
+        else:
+            yield el
 	
 def quitServing():
 	status = '501 Server Error'
@@ -140,7 +152,7 @@ def application(environ, start_response):
 
 	days = {'Mon':0,'Tue':1,'Wed':2,'Thu':3,'Fri':4,'Sat':5,'Sun':6}
 	activities = [[],[],[],[],[],[],[]]
-	activitiesByRoom = dict((room, deepcopy(activities)) for room in Activity.friendlyLocations.values())
+	activitiesByRoom = dict((room, deepcopy(activities)) for room in flatten(Activity.friendlyLocations.values()))
 
 	currentDay = 0
 
