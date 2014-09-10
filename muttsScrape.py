@@ -18,7 +18,7 @@ import muttsScrapeCredentials
 class Activity:
 	
 	friendlyNames = {
-		'CL_MUV_FEE_CAMPUS_COMMUNITY':'Monash Venues',
+		'CL_MUV_':'Monash Venues',
 		'CL_ENGINEERING':'Eng Faculty',
 	}
 	
