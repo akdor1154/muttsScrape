@@ -58,7 +58,7 @@ class Activity:
 		nameSplit = activityNameString.split('/')
 		if (nameSplit[1]) == 'Booking':
 			bookingSource = nameSplit[0]
-			self.name = next((self.friendlyNames[n] for n in self.friendlyNames.keys() if n.startswith(bookingSource)), bookingSource)
+			self.name = next((self.friendlyNames[n] for n in self.friendlyNames.keys() if bookingSource.startswith(n)), bookingSource)
 			self.type = 'Booking'
 		else:
 			unitSplit = nameSplit[0].split('_')
