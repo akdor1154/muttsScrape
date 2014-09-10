@@ -25,7 +25,7 @@ class Activity:
 	friendlyLocations = {
 		'CL_60/G11':'G11',
 		'CL_60/G14':'G14',
-		'CL_60/G15':'G15'
+		'CL_60/G15':'G15',
 		'CL_60/G16':'G16',
 		'CL_60/G18^G19':'G18 & G19',
 		'CL_60/G20':'G20',
