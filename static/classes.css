@@ -12,9 +12,10 @@ li {
 ul.roomList {
       display: block;
 /*      width: 80%;*/
+      margin: 0 auto;
+	  -moz-column-width: 27em;
       -webkit-column-width: 27em;
       column-width: 27em;
-      margin: 0 auto;
 }
 ul.roomList > li {
       display: inline-block;
