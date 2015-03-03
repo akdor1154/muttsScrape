@@ -16,6 +16,8 @@ sys.path.append(os.path.dirname(__file__))
 import muttsScrapeCredentials
 import itertools
 
+print('hellooo')
+
 class Activity:
 	
 	friendlyNames = {
@@ -24,17 +26,17 @@ class Activity:
 	}
 	
 	friendlyLocations = {
-		'CL_60/G11':'G11',
-		'CL_60/G14':'G14',
-		'CL_60/G14^G15':['G14','G15'],
-		'CL_60/G15':'G15',
-		'CL_60/G16':'G16',
-		'CL_60/G18':'G18',
-		'CL_60/G19':'G19',
-		'CL_60/G18^G19':['G18','G19'],
-		'CL_60/G20':'G20',
-		'CL_60/G21':'G21',
-		'CL_60/G21A':'G21a'
+		'CL_23Col/G11':'G11',
+		'CL_23Col/G14':'G14',
+		'CL_23Col/G14^G15':['G14','G15'],
+		'CL_23Col/G15':'G15',
+		'CL_23Col/G16':'G16',
+		'CL_23Col/G18':'G18',
+		'CL_23Col/G19':'G19',
+		'CL_23Col/G18^G19':['G18','G19'],
+		'CL_23Col/G20':'G20',
+		'CL_23Col/G21':'G21',
+		'CL_23Col/G21A':'G21a'
 	}
 	
 	def __init__(self, activityNameString, startTime=None, endTime=None, locations=None):
@@ -90,6 +92,7 @@ def quitServing():
 	return [""]
 	
 def application(environ, start_response):
+	print('hello')
 	loginURL = 'https://mutts.timetable.monash.edu/MUTTS/default.aspx'
 	contextPageResponse = urllib.request.urlopen(loginURL,cadefault=True)
 	contextPageSoup = BeautifulSoup(contextPageResponse.read().decode())
@@ -135,7 +138,7 @@ def application(environ, start_response):
 
 	timetableSearchParams = urllib.parse.urlencode({
 		'buildtype':'location',
-		'splus_year':2014,
+		'splus_year':2015,
 		'searchtype':'specific',
 		'location_cd':Activity.friendlyLocations.keys(),
 		'wp_decimal':weekNumberBinary,
@@ -155,9 +158,12 @@ def application(environ, start_response):
 	activitiesByRoom = dict((room, deepcopy(activities)) for room in flatten(Activity.friendlyLocations.values()))
 
 	currentDay = 0
-
+	startTimeString = timetableSoup.find(id='tblTimetable').tr.td.next_sibling.get_text()
+	startTime = datetime.strptime(startTimeString, '%H:%M')
+	
+	currentTime = None
 	for tr in timetableSoup.find(id='tblTimetable').find_all('tr'):
-		currentTime = datetime.today().replace(hour=8,minute=0,second=0,microsecond=0)
+		currentTime = datetime.today().replace(hour=startTime.hour,minute=startTime.minute,second=0,microsecond=0)
 		columnDelta = timedelta(minutes=30)
 		
 		maybeDay = tr.td.get_text()
@@ -183,6 +189,7 @@ def application(environ, start_response):
 					endTime=currentTime+(tdSpan*columnDelta),
 					locations=rooms
 					)
+				print('found activity: '+str(a))
 				activities[currentTime.weekday()].append(a)
 				[activitiesByRoom[room][a.weekDay].append(a) for room in a.locations]
 			currentTime += tdSpan*columnDelta
@@ -190,8 +197,8 @@ def application(environ, start_response):
 
 	#testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
 	testTime = datetime.today()
-	timeMarginStart = timedelta(hours=1)
-	timeMarginEnd = timedelta(minutes=7)
+	timeMarginForward = timedelta(hours=6)
+	timeMarginBackward = timedelta(minutes=7)
 
 	#currentActivities = dict([
 	#	(room, sorted([a for a in roomActivites[testTime.weekday()]
@@ -202,13 +209,13 @@ def application(environ, start_response):
 	currentActivities = dict([
 		(room, [
 			('prev', next( (a for a in roomActivities[testTime.weekday()]
-				  if (a.endTime > testTime-timeMarginEnd and a.endTime < testTime)
+				  if (a.endTime > testTime-timeMarginBackward and a.endTime < testTime)
 				), None)),
 			('now',  next( (a for a in roomActivities[testTime.weekday()]
 				  if (a.startTime < testTime and a.endTime > testTime)
 				), None)),
 			('next', next( (a for a in roomActivities[testTime.weekday()]
-				  if (a.startTime > testTime and a.startTime < testTime+timeMarginStart)
+				  if (a.startTime > testTime and a.startTime < testTime+timeMarginForward)
 				), None))
 		])
 		for room, roomActivities in activitiesByRoom.items()
@@ -225,7 +232,7 @@ def application(environ, start_response):
 	<head>
 		<title>Current Classes</title></head>
 		<meta charset="UTF-8" />
-		<link rel="stylesheet" type="text/css" href="/static/classes.css" />
+		<link rel="stylesheet" type="text/css" href="/classes.css" />
 	<body>
 	<ul class="roomList">
 	'''
