@@ -226,8 +226,7 @@ def application(environ, start_response):
 	response_headers = [('X-UA-Compatible', 'IE=edge'),
 						('Content-type','text/html')];
 	output = []
-	output.append('''
-	<!DOCTYPE html>
+	output.append('''<!DOCTYPE html>
 	<html>
 	<head>
 		<title>Current Classes</title></head>
