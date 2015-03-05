@@ -13,9 +13,10 @@ class Handler(CGIHTTPRequestHandler):
             if not component: continue
             elif component == 'static': return False
             else: break
-      else:
-            self.cgi_info = '','muttsScrape.py'
-            return True
+      
+      self.cgi_info = '.','muttsScrape.py'
+      print('CGIing')
+      return True
 
 httpd = HTTPServer((serverConfig.hostname, serverConfig.port), Handler)
 print('serving from ',serverConfig.hostname,':',serverConfig.port,sep='');
