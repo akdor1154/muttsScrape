@@ -90,8 +90,8 @@ def quitServing():
 	status = '501 Server Error'
 	start_response(status, 0)
 	return [""]
-	
-def application(environ, start_response):
+
+def getCurrentActivities():
 	print('hello')
 	loginURL = 'https://mutts.timetable.monash.edu/MUTTS/default.aspx'
 	contextPageResponse = urllib.request.urlopen(loginURL,cadefault=True)
@@ -221,8 +221,10 @@ def application(environ, start_response):
 		for room, roomActivities in activitiesByRoom.items()
 	])
 
+	return currentActivities
 
-
+def serveHtml():
+	currentActivities = getCurrentActivities()
 	response_headers = [('X-UA-Compatible', 'IE=edge'),
 						('Content-type','text/html')];
 	output = []
@@ -231,12 +233,11 @@ def application(environ, start_response):
 	<head>
 		<title>Current Classes</title></head>
 		<meta charset="UTF-8" />
-		<link rel="stylesheet" type="text/css" href="/classes.css" />
+		<link rel="stylesheet" type="text/css" href="/static/classes.css" />
 	<body>
 	<ul class="roomList">
 	'''
 	)
-
 	for room, roomActivities in sorted(currentActivities.items(), key=itemgetter(0)):
 		hasPrev = False
 		roomNameOut = '<li><span class="roomName {cssClass}">{room}: </span>'
@@ -273,7 +274,12 @@ def application(environ, start_response):
 	''');
 	
 	outputStr = ''.join(output).encode('UTF-8')
+	return (response_headers, outputStr)
+		
+
+	
+def application(environ, start_response):
+	(response_headers, outputStr) = serveHtml()
 	response_headers.append(('Content-Length', str(len(outputStr))))
 	start_response('200 OK', response_headers)
-	return [outputStr]
-		
+	return outputStr
