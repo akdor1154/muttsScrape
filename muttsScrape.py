@@ -314,4 +314,4 @@ def application(environ, start_response):
 	if (response_headers['Content-type']):
 		response_headers['Content-type'] += '; charset=utf-8'
 	start_response('200 OK', list(response_headers.items()))
-	return outputBytes
+	return [outputBytes]
