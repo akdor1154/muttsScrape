@@ -7,7 +7,10 @@ from operator import attrgetter,itemgetter
 import collections
 
 import urllib.request
+import urllib.parse
 from bs4 import BeautifulSoup
+
+import json
 
 import sys
 import os
@@ -17,6 +20,19 @@ import muttsScrapeCredentials
 import itertools
 
 print('hellooo')
+
+class ActivityJSONEncoder(json.JSONEncoder):
+	def default(self, o):
+		if (o.__class__ is Activity):
+			return o.__dict__()
+		elif (o.__class__ is datetime):
+			return o.timestamp()
+		elif (o.__class__ is set):
+			return list(o)
+		else:
+			return super().default(o)
+
+encoder = ActivityJSONEncoder()
 
 class Activity:
 	
@@ -56,6 +72,15 @@ class Activity:
 		if self.locations:
 			outString += [' in ', ', '.join(self.locations)]
 		return ''.join(outString)
+	def __dict__(self):
+		return {
+			'name': self.name,
+			'type': self.type,
+			'startTime': self.startTime,
+			'endTime': self.endTime,
+			'weekDay': self.weekDay,
+			'locations': self.locations
+		}
 	
 	def timespanToString(self):
 		if self.startTime is None or self.endTime is None:
@@ -90,8 +115,8 @@ def quitServing():
 	status = '501 Server Error'
 	start_response(status, 0)
 	return [""]
-	
-def application(environ, start_response):
+
+def getCurrentActivities():
 	print('hello')
 	loginURL = 'https://mutts.timetable.monash.edu/MUTTS/default.aspx'
 	contextPageResponse = urllib.request.urlopen(loginURL,cadefault=True)
@@ -207,36 +232,37 @@ def application(environ, start_response):
 	#])
 
 	currentActivities = dict([
-		(room, [
-			('prev', next( (a for a in roomActivities[testTime.weekday()]
+		(room, {
+			'prev': next( (a for a in roomActivities[testTime.weekday()]
 				  if (a.endTime > testTime-timeMarginBackward and a.endTime < testTime)
-				), None)),
-			('now',  next( (a for a in roomActivities[testTime.weekday()]
+				), None),
+			'now': next( (a for a in roomActivities[testTime.weekday()]
 				  if (a.startTime < testTime and a.endTime > testTime)
-				), None)),
-			('next', next( (a for a in roomActivities[testTime.weekday()]
+				), None),
+			'next': next( (a for a in roomActivities[testTime.weekday()]
 				  if (a.startTime > testTime and a.startTime < testTime+timeMarginForward)
-				), None))
-		])
+				), None)
+		})
 		for room, roomActivities in activitiesByRoom.items()
 	])
 
+	return currentActivities
 
-
-	response_headers = [('X-UA-Compatible', 'IE=edge'),
-						('Content-type','text/html')];
+def serveHtml():
+	currentActivities = getCurrentActivities()
+	response_headers = {'X-UA-Compatible':'IE=edge',
+						'Content-type':'text/html'};
 	output = []
 	output.append('''<!DOCTYPE html>
 	<html>
 	<head>
 		<title>Current Classes</title></head>
 		<meta charset="UTF-8" />
-		<link rel="stylesheet" type="text/css" href="/classes.css" />
+		<link rel="stylesheet" type="text/css" href="/static/classes.css" />
 	<body>
 	<ul class="roomList">
 	'''
 	)
-
 	for room, roomActivities in sorted(currentActivities.items(), key=itemgetter(0)):
 		hasPrev = False
 		roomNameOut = '<li><span class="roomName {cssClass}">{room}: </span>'
@@ -249,7 +275,7 @@ def application(environ, start_response):
 	#		print('</ul>')
 		classListOut = []
 		classListOut.append('<ul class="classList">')
-		for when,activity in roomActivities:
+		for when,activity in roomActivities.items():
 			if activity is not None:
 				classListOut.append('<li class="{cssClass}">{when:s}{name:s} {type:s}: {time:s}</li>'.format(
 					cssClass=when,
@@ -272,8 +298,20 @@ def application(environ, start_response):
 	</html>
 	''');
 	
-	outputStr = ''.join(output).encode('UTF-8')
-	response_headers.append(('Content-Length', str(len(outputStr))))
-	start_response('200 OK', response_headers)
-	return [outputStr]
+	outputStr = ''.join(output)
+	return (response_headers, outputStr)
 		
+def serveJson():
+	response_headers = {'Content-type':'application/json', 'Access-Control-Allow-Origin': '*'}
+	print('json hello')
+	return (response_headers, encoder.encode(getCurrentActivities()))
+	
+def application(environ, start_response):
+	getParams = urllib.parse.parse_qs(environ['QUERY_STRING'], keep_blank_values=True)
+	(response_headers, outputStr) = serveHtml() if ('json' not in getParams) else serveJson()
+	outputBytes = outputStr.encode('UTF-8')
+	response_headers['Content-Length'] = str(len(outputBytes))
+	if (response_headers['Content-type']):
+		response_headers['Content-type'] += '; charset=utf-8'
+	start_response('200 OK', list(response_headers.items()))
+	return outputBytes
