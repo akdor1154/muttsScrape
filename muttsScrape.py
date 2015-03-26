@@ -223,7 +223,7 @@ def getCurrentActivities():
 	#testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
 	testTime = datetime.today()
 	timeMarginForward = timedelta(hours=6)
-	timeMarginBackward = timedelta(minutes=7)
+	timeMarginBackward = timedelta(hours=6)
 
 	#currentActivities = dict([
 	#	(room, sorted([a for a in roomActivites[testTime.weekday()]
