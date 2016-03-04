@@ -16,6 +16,10 @@ import threading
 
 thread = None
 
+import tempfile
+
+os.chdir(tempfile.gettempdir())
+
 def getCurrentActivities():
     try:
         print('attempting to load saved activities...')
@@ -38,7 +42,7 @@ def getCurrentActivities():
         print(e.args)
         activities, activitiesByRoom = getFreshActivities()
 
-    return activitiesByRoom
+    return muttsScrape.Scraper.getCurrentActivities(activitiesByRoom)
 
 
 def getFreshActivitiesInBackground():

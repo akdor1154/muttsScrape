@@ -242,8 +242,6 @@ class Scraper:
 
         timetableSoup = BeautifulSoup(timetableResponse.text)
 
-        print(timetableResponse.text)
-
         return timetableSoup
 
 
@@ -307,8 +305,8 @@ class Scraper:
 
         return activities, activitiesByRoom
 
-
-    def getCurrentActivities(self, activitiesByRoom):
+    @staticmethod
+    def getCurrentActivities(activitiesByRoom):
 
 
         #testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
@@ -370,5 +368,5 @@ if __name__ == '__main__':
             dump(activitiesByRoom, savedActivitiesByRoomFile)
         print('saved activities')
 
-    currentActivities = s.getCurrentActivities(activitiesByRoom)
+    currentActivities = Scraper.getCurrentActivities(activitiesByRoom)
     print(currentActivities)

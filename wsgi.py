@@ -9,12 +9,13 @@ import muttsScrape
 from  muttsScrapeCache import getCurrentActivities
 import json
 import datetime
+import urllib
 
 class ActivityJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if (o.__class__ is muttsScrape.Activity):
             return o.__dict__()
-        elif (o.__class__ is datetime.Datetime):
+        elif (o.__class__ is datetime.datetime):
             return o.timestamp()
         elif (o.__class__ is set):
             return list(o)
