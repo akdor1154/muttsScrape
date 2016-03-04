@@ -1,3 +1,10 @@
+import os
+import sys
+
+dirPath = os.path.dirname(os.path.realpath(__file__))
+
+sys.path.insert(0, dirPath)
+
 import muttsScrape
 from  muttsScrapeCache import getCurrentActivities
 import json
