@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
-from datetime import date,timedelta,time,datetime
+from datetime import date,timedelta as Timedelta,time,datetime as Datetime
 from copy import deepcopy
 from operator import attrgetter,itemgetter
 import collections
@@ -9,7 +9,7 @@ import collections
 import urllib.request
 import urllib.parse
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 import requests
 
 import json
@@ -57,7 +57,7 @@ class Activity:
         'CL_23Col/G21A':'G21a'
     }
     
-    def __init__(self, activityNameString, startTime=None, endTime=None, locations=None):
+    def __init__(self, activityNameString : str, startTime:Datetime = None, endTime:Datetime=None, locations:list=None):
         self.name = ''
         self.type = ''
         self.startTime = startTime
@@ -65,15 +65,19 @@ class Activity:
         self.weekDay = startTime.weekday() if (startTime is not None) else None
         self.locations = set(flatten(
                     [(self.friendlyLocations[l] if (l in self.friendlyLocations) else l)
-                        for l in locations.split(', ')]
+                        for l in locations]
                 ))
         self.parseName(activityNameString)
+
+    def __repr__(self):
+        return self.__str__()
         
     def __str__(self):
         outString = [self.name,' ',self.type,': ',self.timespanToString()]
         if self.locations:
             outString += [' in ', ', '.join(self.locations)]
         return ''.join(outString)
+
     def __dict__(self):
         return {
             'name': self.name,
@@ -83,6 +87,13 @@ class Activity:
             'weekDay': self.weekDay,
             'locations': self.locations
         }
+    def __setstate__(self, state):
+        self.name = state['name']
+        self.type = state['type']
+        self.startTime = state['startTime']
+        self.endTime = state['endTime']
+        self.weekDay = state['weekDay']
+        self.locations = state['locations']
     
     def timespanToString(self):
         if self.startTime is None or self.endTime is None:
@@ -145,6 +156,9 @@ def expandDictKeys(d):
         else:
             l.append((k, v))
     return l
+
+def getString(soup):
+    return ''.join(s for s in soup.contents if isinstance(s, NavigableString))
 
 
 class Scraper:
@@ -242,84 +256,100 @@ class Scraper:
 
         print(timetableResponse.text)
 
-        return timetableResponse
+        return timetableSoup
 
 
-def getCurrentActivities():
-    print('hello')
+    def getActivities(self, soup):
 
-    self.login()
+        days = {'Monday':0,'Tuesday':1,'Wednesday':2,'Thursday':3,'Friday':4,'Saturday':5,'Sunday':6}
+        activities = [[],[],[],[],[],[],[]]
+        activitiesByRoom = dict((room, deepcopy(activities)) for room in flatten(Activity.friendlyLocations.values()))
+
+        today = Datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        currentTime = None
+
+        for tr in soup.find('table', class_='cyon_table').find('tbody').find_all('tr'):
+            tds = tr.find_all('td')
+            activityName = str(tds[0].string)
+            activityUnitFullName = str(tds[1].string)
+            activityUnitDescription = str(tds[2].string)
+            activityDayName = str(tds[3].string)
+            activityStartTimeStr = getString(tds[4])
+            activityDurationStr = getString(tds[5])
+            activityTeachingWeeks = str(tds[6].string)
+
+            locationsTd = tds[7]
+
+            #try:
+            activityTime = Datetime.strptime(activityStartTimeStr, '%I:%M%p')
+            activityDurationHours, activityDurationMinutes = tuple(map(int, activityDurationStr.split(':', maxsplit=2)))
+            activityDuration = Timedelta(hours=activityDurationHours, minutes=activityDurationMinutes)
+            activityStartDay = (
+                  today
+                - Timedelta(days = today.weekday())
+                + Timedelta(days = days[activityDayName])
+            )
+            activityStartTime = activityStartDay.replace(hour=activityTime.hour, minute=activityTime.minute)
+            activityEndTime = activityStartTime+activityDuration
+            #except Exception as e:
+            #    print('error getting time for activity:')
+            #    print('name: %s' % activityName)
+            #    print('startTimeStr: %s' % activityStartTimeStr)
+            #    print('durationStr: %s' % activityDurationStr)
+            #    continue
+
+            activityRooms = []
+            for aElement in locationsTd.find_all('a'):
+                room = aElement['href'].split('Location=')[1]
+                activityRooms.append(room)
+
+            a = Activity(
+                activityName,
+                startTime=activityStartTime,
+                endTime=activityEndTime,
+                locations=activityRooms
+            )
+
+            activities[a.weekDay].append(a)
+            [activitiesByRoom[room][a.weekDay].append(a) for room in a.locations if room in Activity.friendlyLocations.values()]
+
+        self.activities = activities
+        self.activitiesByRoom = activitiesByRoom
+
+        return activities, activitiesByRoom
 
 
-    days = {'Mon':0,'Tue':1,'Wed':2,'Thu':3,'Fri':4,'Sat':5,'Sun':6}
-    activities = [[],[],[],[],[],[],[]]
-    activitiesByRoom = dict((room, deepcopy(activities)) for room in flatten(Activity.friendlyLocations.values()))
-
-    currentDay = 0
-    startTimeString = timetableSoup.find(id='tblTimetable').tr.td.next_sibling.get_text()
-    startTime = datetime.strptime(startTimeString, '%H:%M')
-    
-    currentTime = None
-    for tr in timetableSoup.find(id='tblTimetable').find_all('tr'):
-        currentTime = datetime.today().replace(hour=startTime.hour,minute=startTime.minute,second=0,microsecond=0)
-        columnDelta = timedelta(minutes=30)
-        
-        maybeDay = tr.td.get_text()
-        if maybeDay in days:
-            currentDay = days[maybeDay]
-            
-        currentTime = (currentTime
-            - timedelta(days=currentTime.weekday())
-            + timedelta(days=currentDay) )
-        if 'rowspan' in tr.td.attrs and int(tr.td['rowspan']) > 1:
-            currentTime -= columnDelta
-            
-        for td in tr.find_all('td'):
-            tdSpan = 1
-            if 'span' in td.attrs:
-                tdSpan = int(td['span'])
-                tdSpan = tdSpan if (tdSpan > 1) else 1
-            if 'activity_name' in td.attrs and len(td['activity_name']) > 1:
-                rooms = getRoomString(td)
-                a = Activity(
-                    td['activity_name'],
-                    startTime=currentTime,
-                    endTime=currentTime+(tdSpan*columnDelta),
-                    locations=rooms
-                    )
-                print('found activity: '+str(a))
-                activities[currentTime.weekday()].append(a)
-                [activitiesByRoom[room][a.weekDay].append(a) for room in a.locations]
-            currentTime += tdSpan*columnDelta
+    def getCurrentActivities(self, activitiesByRoom):
 
 
-    #testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
-    testTime = datetime.today()
-    timeMarginForward = timedelta(hours=6)
-    timeMarginBackward = timedelta(hours=6)
+        #testTime = datetime.today().replace(hour=11,minute=0,second=0,microsecond=0)
+        testTime = Datetime.today()
+        timeMarginForward = Timedelta(hours=6)
+        timeMarginBackward = Timedelta(hours=6)
 
-    #currentActivities = dict([
-    #   (room, sorted([a for a in roomActivites[testTime.weekday()]
-    #       if (a.startTime < testTime+timeMarginStart and testTime-timeMarginEnd < a.endTime)], key=attrgetter('startTime')))
-    #   for room, roomActivites in activitiesByRoom.items()
-    #])
+        #currentActivities = dict([
+        #   (room, sorted([a for a in roomActivites[testTime.weekday()]
+        #       if (a.startTime < testTime+timeMarginStart and testTime-timeMarginEnd < a.endTime)], key=attrgetter('startTime')))
+        #   for room, roomActivites in activitiesByRoom.items()
+        #])
 
-    currentActivities = dict([
-        (room, {
-            'prev': next( (a for a in roomActivities[testTime.weekday()]
-                  if (a.endTime > testTime-timeMarginBackward and a.endTime < testTime)
-                ), None),
-            'now': next( (a for a in roomActivities[testTime.weekday()]
-                  if (a.startTime < testTime and a.endTime > testTime)
-                ), None),
-            'next': next( (a for a in roomActivities[testTime.weekday()]
-                  if (a.startTime > testTime and a.startTime < testTime+timeMarginForward)
-                ), None)
-        })
-        for room, roomActivities in activitiesByRoom.items()
-    ])
+        currentActivities = dict([
+            (room, {
+                'prev': next( (a for a in roomActivities[testTime.weekday()]
+                      if (a.endTime > testTime-timeMarginBackward and a.endTime < testTime)
+                    ), None),
+                'now': next( (a for a in roomActivities[testTime.weekday()]
+                      if (a.startTime < testTime and a.endTime > testTime)
+                    ), None),
+                'next': next( (a for a in roomActivities[testTime.weekday()]
+                      if (a.startTime > testTime and a.startTime < testTime+timeMarginForward)
+                    ), None)
+            })
+            for room, roomActivities in activitiesByRoom.items()
+        ])
 
-    return currentActivities
+        return currentActivities
 
 def serveHtml():
     currentActivities = getCurrentActivities()
@@ -389,8 +419,32 @@ def application(environ, start_response):
     start_response('200 OK', list(response_headers.items()))
     return [outputBytes]
 
+from pickle import load, dump
 
 if __name__ == '__main__':
     s = Scraper()
-    s.login()
-    ts = s.getTimetableSoup()
+
+    try:
+        raise Exception('asdf')
+        print('attempting to load saved activities...')
+        with open('savedActivities.pickle', 'rb') as savedActivitiesFile:
+            activities = load(savedActivitiesFile)
+        with open('savedActivitiesByRoom.pickle', 'rb') as savedActivitiesByRoomFile:
+            activitiesByRoom = load(savedActivitiesByRoomFile)
+        print('loaded saved activities')
+
+    except Exception as e:
+        print('loading failed, rescraping')
+        print(e)
+        print(e.args)
+        s.login()
+        ts = s.getTimetableSoup()
+        activities, activitiesByRoom = s.getActivities(ts)
+        with open('savedActivities.pickle', 'wb') as savedActivitiesFile:
+            dump(activities, savedActivitiesFile)
+        with open('savedActivitiesByRoom.pickle', 'wb') as savedActivitiesByRoomFile:
+            dump(activitiesByRoom, savedActivitiesByRoomFile)
+        print('saved activities')
+
+    currentActivities = s.getCurrentActivities(activitiesByRoom)
+    print(currentActivities)
